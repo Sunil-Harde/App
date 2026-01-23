@@ -13,7 +13,7 @@ const uploadRoutes = require('./routes/uploadRoutes');
 const journalRoutes = require('./routes/journalRoutes');
 const goalRoutes = require('./routes/goalRoutes');
 const startGoalScheduler = require('./utils/scheduler');
-
+const videoRoutes = require('./routes/videoRoutes'); // <--- Import this
 
 dotenv.config();
 connectDB();
@@ -41,6 +41,7 @@ app.use('/api/user', userRoutes);
 // 3. PUBLIC CONTENT (Read-Only)
 // This allows the app to fetch lists without being an admin
 app.use('/api/audios', audioRoutes);
+app.use('/api/videos', videoRoutes); // <--- Add this line
 app.use('/api/categories', categoryRoutes);
 
 // 4. UTILITIES

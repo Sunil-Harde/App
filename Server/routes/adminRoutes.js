@@ -2,36 +2,45 @@ const express = require('express');
 const router = express.Router();
 const { protect, admin } = require('../middleware/authMiddleware');
 
-// Import All Controllers
-const { getUsers, deleteUser } = require('../controllers/userController');
+// Import Controllers
+const { getUsers, deleteUser, updateUser } = require('../controllers/userController');
 const { createAudio, updateAudio, deleteAudio } = require('../controllers/audioController');
 const { createCategory, updateCategory, deleteCategory } = require('../controllers/categoryController');
+const { createVideo, updateVideo, deleteVideo } = require('../controllers/videoController');
 
-// --- APPLY ADMIN SECURITY GLOBALLY ---
-// Every route below this line requires a valid Token AND Admin privileges
+// All Admin routes are protected
 router.use(protect, admin);
 
-// --- 1. USER MANAGEMENT ---
+// --- USER MANAGEMENT ---
 router.route('/users')
-  .get(getUsers);          // GET /api/admin/users (View all users)
+  .get(getUsers);
 
 router.route('/users/:id')
-  .delete(deleteUser);     // DELETE /api/admin/users/:id (Ban user)
+  .delete(deleteUser)
+  .put(updateUser); // <--- Add this line!
 
-// --- 2. AUDIO MANAGEMENT ---
+// --- AUDIO MANAGEMENT ---
 router.route('/audios')
-  .post(createAudio);      // POST /api/admin/audios (Upload)
+  .post(createAudio);
 
 router.route('/audios/:id')
-  .put(updateAudio)        // PUT /api/admin/audios/:id (Edit)
-  .delete(deleteAudio);    // DELETE /api/admin/audios/:id (Remove)
+  .put(updateAudio)
+  .delete(deleteAudio);
 
-// --- 3. CATEGORY MANAGEMENT ---
+// --- CATEGORY MANAGEMENT ---
 router.route('/categories')
-  .post(createCategory);   // POST /api/admin/categories
+  .post(createCategory);
 
 router.route('/categories/:id')
   .put(updateCategory)
   .delete(deleteCategory);
+
+
+router.route('/videos')
+  .post(createVideo);      // POST /api/admin/videos (Upload)
+
+router.route('/videos/:id')
+  .put(updateVideo)        // PUT /api/admin/videos/:id (Edit)
+  .delete(deleteVideo);
 
 module.exports = router;

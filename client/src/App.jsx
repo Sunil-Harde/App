@@ -11,7 +11,7 @@ import Users from './pages/Users';
 import Goals from './pages/Goals';
 import Journals from './pages/Journals';
 import Profile from './pages/Profile';
-
+import Videos from './pages/Videos';
 
 function App() {
   return (
@@ -26,6 +26,7 @@ function App() {
         <Route path="/goals" element={<Goals />} />
         <Route path="/journals" element={<Journals />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/videos" element={<Videos />} />
       </Routes>
     </Router>
   );

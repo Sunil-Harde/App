@@ -1,34 +1,33 @@
 const path = require('path');
 const express = require('express');
 const multer = require('multer');
-
 const router = express.Router();
 
-// Configure Storage (Where to save files)
+// 1. Storage Engine
 const storage = multer.diskStorage({
   destination(req, file, cb) {
-    cb(null, 'uploads/'); // Files will be saved in 'uploads' folder
+    cb(null, 'uploads/'); // Save files in the 'uploads' folder
   },
   filename(req, file, cb) {
-    // Rename file to avoid duplicates: fieldname-date.extension
+    // Name format: fieldname-date.extension (e.g., video-123456789.mp4)
     cb(null, `${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`);
   },
 });
 
-// Check File Type (Security)
+// 2. Check File Type (Images OR Videos)
 function checkFileType(file, cb) {
-  const filetypes = /jpg|jpeg|png|mp3|mpeg/; // Allowed extensions
+  const filetypes = /jpg|jpeg|png|mp4|mkv|mov|avi/; // Allowed extensions
   const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
   const mimetype = filetypes.test(file.mimetype);
 
   if (extname && mimetype) {
     return cb(null, true);
   } else {
-    cb('Error: Images and MP3 Audio Only!');
+    cb('Error: Only Images and Videos are allowed!');
   }
 }
 
-// Upload Middleware
+// 3. Init Upload
 const upload = multer({
   storage,
   fileFilter: function (req, file, cb) {
@@ -36,14 +35,10 @@ const upload = multer({
   },
 });
 
-// Route: POST /api/upload
-// Handles single file upload with field name "image" (reused for audio)
+// 4. Route
 router.post('/', upload.single('image'), (req, res) => {
-  if (req.file) {
-    res.send(`/${req.file.path.replace(/\\/g, "/")}`); // Return the path
-  } else {
-    res.status(400).send('No file uploaded');
-  }
+  // 'image' is the key name we send from frontend, but it handles videos too
+  res.send(`/${req.file.path.replace(/\\/g, '/')}`); // Return the path (e.g., /uploads/video-123.mp4)
 });
 
 module.exports = router;

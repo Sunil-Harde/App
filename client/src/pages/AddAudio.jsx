@@ -74,10 +74,10 @@ const AddAudio = () => {
 
   const handleEdit = (audio) => {
     setEditingAudio(audio);
-    setFormData({ 
-      title: audio.title, 
-      category: audio.category, 
-      duration: audio.duration 
+    setFormData({
+      title: audio.title,
+      category: audio.category,
+      duration: audio.duration
     });
     setImageFile(null);
     setAudioFile(null);
@@ -146,7 +146,7 @@ const AddAudio = () => {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
-      
+
       <div className="flex-1 ml-64 p-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800">Audio Library</h1>
@@ -158,10 +158,10 @@ const AddAudio = () => {
         {loading ? <div className="text-center p-10">Loading...</div> : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {audios.map(audio => (
-              <AudioCard 
-                key={audio._id} 
-                audio={audio} 
-                onDelete={handleDelete} 
+              <AudioCard
+                key={audio._id}
+                audio={audio}
+                onDelete={handleDelete}
                 onEdit={handleEdit}
               />
             ))}
@@ -179,80 +179,80 @@ const AddAudio = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Title</label>
-                <input 
-                  className="w-full border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
-                  value={formData.title} 
-                  onChange={e => setFormData({...formData, title: e.target.value})} 
-                  required 
+                <input
+                  className="w-full border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  value={formData.title}
+                  onChange={e => setFormData({ ...formData, title: e.target.value })}
+                  required
                 />
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
-                 
-                 {/* --- 2. DYNAMIC CATEGORY DROPDOWN --- */}
-                 <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Category</label>
-                    <select 
-                        className="w-full border border-gray-300 p-2 rounded-lg bg-white"
-                        value={formData.category}
-                        onChange={e => setFormData({...formData, category: e.target.value})}
-                        required
-                    >
-                      <option value="" disabled>Select Category</option>
-                      {categories.length > 0 ? (
-                        categories.map((cat) => (
-                          <option key={cat._id} value={cat.name}>
-                            {cat.name}
-                          </option>
-                        ))
-                      ) : (
-                        <option disabled>No categories found</option>
-                      )}
-                    </select>
-                 </div>
-                 
-                 <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Duration (Auto)</label>
-                    <input 
-                        className="w-full border border-gray-200 bg-gray-100 p-2 rounded-lg text-gray-500 cursor-not-allowed" 
-                        value={formData.duration} 
-                        readOnly
-                        placeholder="Select audio..."
-                    />
-                 </div>
+
+                {/* --- 2. DYNAMIC CATEGORY DROPDOWN --- */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Category</label>
+                  <select
+                    className="w-full border border-gray-300 p-2 rounded-lg bg-white"
+                    value={formData.category}
+                    onChange={e => setFormData({ ...formData, category: e.target.value })}
+                    required
+                  >
+                    <option value="" disabled>Select Category</option>
+                    {categories.length > 0 ? (
+                      categories.map((cat) => (
+                        <option key={cat._id} value={cat.name}>
+                          {cat.name}
+                        </option>
+                      ))
+                    ) : (
+                      <option disabled>No categories found</option>
+                    )}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Duration (Auto)</label>
+                  <input
+                    className="w-full border border-gray-200 bg-gray-100 p-2 rounded-lg text-gray-500 cursor-not-allowed"
+                    value={formData.duration}
+                    readOnly
+                    placeholder="Select audio..."
+                  />
+                </div>
               </div>
 
               {/* ... Image & Audio Upload sections remain the same ... */}
               <div className="border border-dashed border-gray-300 rounded-lg p-4 relative hover:bg-gray-50 transition">
-                 <div className="flex items-center gap-4">
-                    {editingAudio && !imageFile ? (
-                        <img 
-                          src={`http://localhost:5000${editingAudio.imageUrl}`} 
-                          className="w-16 h-16 rounded object-cover border" 
-                        />
-                    ) : (
-                        <div className="w-16 h-16 bg-blue-50 rounded flex items-center justify-center text-blue-500">
-                          <ImageIcon size={24} />
-                        </div>
-                    )}
-                    <div className="flex-1">
-                       <p className="text-sm font-medium text-gray-700">{imageFile ? imageFile.name : "Thumbnail Image"}</p>
-                       <input type="file" accept="image/*" className="text-xs mt-1" onChange={e => setImageFile(e.target.files[0])} />
+                <div className="flex items-center gap-4">
+                  {editingAudio && !imageFile ? (
+                    <img
+                      src={`http://localhost:5000${editingAudio.imageUrl}`}
+                      className="w-16 h-16 rounded object-cover border"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 bg-blue-50 rounded flex items-center justify-center text-blue-500">
+                      <ImageIcon size={24} />
                     </div>
-                 </div>
+                  )}
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-700">{imageFile ? imageFile.name : "Thumbnail Image"}</p>
+                    <input type="file" accept="image/*" className="text-xs mt-1" onChange={e => setImageFile(e.target.files[0])} />
+                  </div>
+                </div>
               </div>
 
               <div className="border border-dashed border-gray-300 rounded-lg p-4 relative hover:bg-gray-50 transition">
-                 <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 bg-green-50 rounded flex items-center justify-center text-green-500"><Music size={24} /></div>
-                    <div className="flex-1">
-                       <p className="text-sm font-medium text-gray-700">{audioFile ? audioFile.name : "Audio File (MP3)"}</p>
-                       <input type="file" accept="audio/*" className="text-xs mt-1" onChange={handleAudioSelect} />
-                    </div>
-                 </div>
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-green-50 rounded flex items-center justify-center text-green-500"><Music size={24} /></div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-700">{audioFile ? audioFile.name : "Audio File (MP3)"}</p>
+                    <input type="file" accept="audio/*" className="text-xs mt-1" onChange={handleAudioSelect} />
+                  </div>
+                </div>
               </div>
 
               <button disabled={submitting} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold transition shadow-lg flex justify-center">

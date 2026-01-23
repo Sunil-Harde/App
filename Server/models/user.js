@@ -16,33 +16,34 @@ const userSchema = mongoose.Schema(
       type: String,
       required: true,
     },
-    favorites: [
-        { type: mongoose.Schema.Types.ObjectId, ref: 'Audio' } 
-    ],
     isAdmin: {
       type: Boolean,
+      required: true,
       default: false,
     },
   },
   {
-    timestamps: true, // Automatically adds createdAt and updatedAt
+    timestamps: true,
   }
 );
 
-// Method to check if entered password matches the hashed password in DB
+// Method to check if password matches
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// Middleware to hash the password before saving
-userSchema.pre('save', async function (next) {
+// --- FIX IS HERE ---
+// Encrypt password BEFORE saving to DB
+// We removed 'next' and just use 'return'
+userSchema.pre('save', async function () {
+  // 1. If password is NOT modified (e.g., just updating isAdmin), do nothing
   if (!this.isModified('password')) {
-    next();
+    return; 
   }
+
+  // 2. Otherwise, hash the new password
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });
 
-const User = mongoose.model('User', userSchema);
-
-module.exports = User;
+module.exports = mongoose.model('User', userSchema);

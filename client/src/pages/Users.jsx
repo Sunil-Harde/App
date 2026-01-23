@@ -1,155 +1,162 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
+import ConfirmModal from '../components/ConfirmModal'; // <--- Import New Component
 import api from '../api';
 import { toast } from 'react-toastify';
-import { Trash2, Search, Mail, Shield, User, Loader2 } from 'lucide-react';
+import { Trash2, Shield, ShieldCheck, Search } from 'lucide-react';
 
 const Users = () => {
   const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // 1. Fetch Users
+  // --- MODAL STATE ---
+  const [modal, setModal] = useState({ 
+    isOpen: false, 
+    title: '', 
+    message: '', 
+    isDanger: false, 
+    action: null 
+  });
+
   const fetchUsers = async () => {
     try {
-      const { data } = await api.get('/admin/users'); 
+      const { data } = await api.get('/admin/users');
       setUsers(data);
     } catch (error) {
-      console.error(error);
-      toast.error("Failed to load users");
-    } finally {
-      setLoading(false);
+      toast.error("Failed to fetch users");
     }
   };
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  useEffect(() => { fetchUsers(); }, []);
 
-  // 2. Delete User
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this user? This cannot be undone.")) return;
-    
+  // --- 1. HANDLE DELETE CLICK ---
+  const clickDelete = (user) => {
+    setModal({
+      isOpen: true,
+      title: 'Delete User?',
+      message: `Are you sure you want to permanently delete ${user.name}? This action cannot be undone.`,
+      isDanger: true,
+      action: () => confirmDelete(user._id) // Store the function to run later
+    });
+  };
+
+  // --- 2. HANDLE PROMOTE CLICK ---
+  const clickToggleAdmin = (user) => {
+    const isPromoting = !user.isAdmin;
+    setModal({
+      isOpen: true,
+      title: isPromoting ? 'Promote to Admin?' : 'Revoke Admin Access?',
+      message: isPromoting 
+        ? `Are you sure you want to give ${user.name} full control over the system?` 
+        : `Are you sure you want to remove ${user.name} from the admin team?`,
+      isDanger: !isPromoting, // Red color if removing admin
+      action: () => confirmToggle(user)
+    });
+  };
+
+  // --- ACTUAL API CALLS (Run only when "Yes" is clicked) ---
+  
+  const confirmDelete = async (id) => {
     try {
       await api.delete(`/admin/users/${id}`);
-      setUsers(users.filter(user => user._id !== id));
-      toast.success("User removed successfully");
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to delete user");
-    }
+      setUsers(users.filter((u) => u._id !== id));
+      toast.success('User deleted successfully');
+    } catch (error) { toast.error('Delete failed'); }
   };
 
-  // 3. Filter Logic (Search by Name or Email)
+  const confirmToggle = async (user) => {
+    try {
+      const newStatus = !user.isAdmin;
+      await api.put(`/admin/users/${user._id}`, { isAdmin: newStatus });
+      setUsers(users.map(u => u._id === user._id ? { ...u, isAdmin: newStatus } : u));
+      toast.success(newStatus ? "User Promoted!" : "User Demoted.");
+    } catch (error) { toast.error('Update failed'); }
+  };
+
+  // Filter
   const filteredUsers = users.filter(user => 
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    user.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
       
-      <div className="flex-1 ml-64 p-8">
-        
-        {/* Header Section */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800">User Management</h1>
-            <p className="text-gray-500 mt-1">
-              Total Users: <span className="font-bold text-blue-600">{users.length}</span>
-            </p>
-          </div>
+      {/* --- RENDER MODAL HERE --- */}
+      <ConfirmModal 
+        isOpen={modal.isOpen}
+        onClose={() => setModal({ ...modal, isOpen: false })}
+        onConfirm={modal.action}
+        title={modal.title}
+        message={modal.message}
+        isDanger={modal.isDanger}
+      />
 
-          {/* Search Bar */}
+      <div className="flex-1 ml-64 p-8">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-gray-800">User Management</h1>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+            <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
             <input 
               type="text" 
-              placeholder="Search users..." 
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none w-64"
+              placeholder="Search..." 
+              className="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
         </div>
 
-        {/* User Table */}
-        {loading ? (
-           <div className="flex justify-center p-12">
-             <Loader2 className="animate-spin text-blue-600" size={40} />
-           </div>
-        ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-gray-50 text-gray-600 uppercase text-xs font-semibold">
-                <tr>
-                  <th className="p-4">User</th>
-                  <th className="p-4">Role</th>
-                  <th className="p-4">Joined Date</th>
-                  <th className="p-4 text-right">Actions</th>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <table className="w-full text-left">
+            <thead className="bg-gray-50 text-gray-500 font-semibold text-sm uppercase">
+              <tr>
+                <th className="p-4">User</th>
+                <th className="p-4 text-center">Role</th>
+                <th className="p-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filteredUsers.map((user) => (
+                <tr key={user._id} className="hover:bg-gray-50 transition">
+                  <td className="p-4">
+                    <p className="font-bold text-gray-800">{user.name}</p>
+                    <p className="text-sm text-gray-500">{user.email}</p>
+                  </td>
+                  <td className="p-4 text-center">
+                    {user.isAdmin ? (
+                      <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold flex items-center justify-center gap-1 w-fit mx-auto">
+                        <ShieldCheck size={14} /> Admin
+                      </span>
+                    ) : (
+                      <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold">User</span>
+                    )}
+                  </td>
+                  <td className="p-4 flex justify-end gap-3">
+                    {/* BUTTONS NOW TRIGGER MODAL INSTEAD OF API */}
+                    <button 
+                      onClick={() => clickToggleAdmin(user)}
+                      className={`p-2 rounded-lg transition border ${
+                        user.isAdmin 
+                          ? " text-red-600 bg-red-200 border-gray-200 hover:text-red-700 hover:bg-red-300" 
+                          : "bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100"
+                      }`}
+                    >
+                      {user.isAdmin ? <ShieldCheck size={18} /> : <Shield size={18} />}
+                    </button>
+                    
+                    <button 
+                      onClick={() => clickDelete(user)}
+                      className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 border border-red-100 transition"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredUsers.length > 0 ? (
-                  filteredUsers.map((user) => (
-                    <tr key={user._id} className="hover:bg-gray-50 transition">
-                      
-                      {/* Name & Email Column */}
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold">
-                            {user.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="font-bold text-gray-800">{user.name}</p>
-                            <div className="flex items-center gap-1 text-xs text-gray-500">
-                              <Mail size={12} /> {user.email}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Role Column */}
-                      <td className="p-4">
-                        {user.isAdmin ? (
-                          <span className="inline-flex items-center gap-1 bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-bold border border-purple-200">
-                            <Shield size={12} /> Admin
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs font-bold border border-gray-200">
-                            <User size={12} /> User
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Date Column */}
-                      <td className="p-4 text-sm text-gray-600">
-                        {new Date(user.createdAt).toLocaleDateString()}
-                      </td>
-
-                      {/* Action Column */}
-                      <td className="p-4 text-right">
-                        <button 
-                          onClick={() => handleDelete(user._id)}
-                          className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition"
-                          title="Delete User"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="4" className="p-8 text-center text-gray-500">
-                      No users found matching "{searchTerm}"
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

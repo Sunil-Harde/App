@@ -1,18 +1,19 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Music, 
-  Users, 
-  LogOut, 
-  Tag, 
+import {
+  LayoutDashboard,
+  Music,
+  Users,
+  LogOut,
+  Tag,
   Target,     // <--- Icon for Goals
   BookOpen,   // <--- Icon for Journals
-  User        // <--- Icon for Profile
+  User,        // <--- Icon for Profile
+  PlayCircle
 } from 'lucide-react';
 
 const Sidebar = () => {
   const navigate = useNavigate();
-  const location = useLocation(); 
+  const location = useLocation();
 
   const handleLogout = () => {
     // Clear all potential user data
@@ -48,14 +49,21 @@ const Sidebar = () => {
         {/* --- CONTENT MANAGEMENT --- */}
         <div className="px-6 py-2 text-xs font-bold text-slate-500 uppercase tracking-widest mt-2">Content</div>
 
+        <Link to="/categories" className={`flex items-center gap-3 px-6 py-3 transition-all ${isActive('/categories')}`}>
+          <Tag size={20} />
+          <span className="font-medium">Categories</span>
+        </Link>
+
         <Link to="/add-audio" className={`flex items-center gap-3 px-6 py-3 transition-all ${isActive('/add-audio')}`}>
           <Music size={20} />
           <span className="font-medium">Audio Library</span>
         </Link>
 
-        <Link to="/categories" className={`flex items-center gap-3 px-6 py-3 transition-all ${isActive('/categories')}`}>
-          <Tag size={20} />
-          <span className="font-medium">Categories</span>
+        <Link to="/videos" className={`flex items-center gap-3 px-4 py-3 rounded-lg ${isActive('/videos')}`}>
+          <div className="bg-red-500/10 p-1 rounded text-red-500">
+            <PlayCircle size={18} />
+          </div>
+          <span className="font-medium">Video Library</span>
         </Link>
 
         <Link to="/users" className={`flex items-center gap-3 px-6 py-3 transition-all ${isActive('/users')}`}>
@@ -80,6 +88,9 @@ const Sidebar = () => {
           <User size={20} />
           <span className="font-medium">Profile Settings</span>
         </Link>
+
+
+
 
       </nav>
 
