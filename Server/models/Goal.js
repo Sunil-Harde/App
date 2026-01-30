@@ -18,7 +18,7 @@ const goalSchema = mongoose.Schema(
     },
     // When the user *plans* to complete it (optional, can be same as deadline)
     targetDate: {
-      type: Date, 
+      type: Date,
     },
     status: {
       type: String,
