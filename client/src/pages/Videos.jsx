@@ -1,326 +1,264 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import ConfirmModal from '../components/ConfirmModal';
+import MediaCard from '../components/MediaCard';      
+import MediaSkeleton from '../components/MediaSkeleton'; 
 import api from '../api';
 import { toast } from 'react-toastify';
 import { 
-  Video, Trash2, Edit2, Plus, Play, Image as ImageIcon, Clock, Save, X, PlayCircle, UploadCloud, Loader, Film, FileVideo
+  Plus, Loader2, X, UploadCloud, Film, Image as ImageIcon 
 } from 'lucide-react';
 
 const Videos = () => {
   const [videos, setVideos] = useState([]);
-  const [categories, setCategories] = useState([]);
-  
-  // UI States
+  const [categories, setCategories] = useState([]); 
+  const [loading, setLoading] = useState(true);
+
+  // Modals
   const [showFormModal, setShowFormModal] = useState(false);
+  const [viewVideo, setViewVideo] = useState(null);
+  const [viewImage, setViewImage] = useState(null);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, action: null });
-  const [uploadingVideo, setUploadingVideo] = useState(false);
-  const [uploadingThumb, setUploadingThumb] = useState(false);
+  const [editingVideo, setEditingVideo] = useState(null);
 
-  // Form State
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    videoUrl: '',
-    thumbnailUrl: '',
-    duration: '',
-    category: ''
-  });
+  // Form Data
+  const [formData, setFormData] = useState({ title: '', category: '', description: '', duration: '' });
+  const [thumbnailFile, setThumbnailFile] = useState(null);
+  const [videoFile, setVideoFile] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [editId, setEditId] = useState(null);
+  // --- URL HELPER (Fixes broken images/videos) ---
+  const getProxyUrl = (url) => {
+    if (!url) return "";
+    if (url.startsWith('http') || url.startsWith('blob:')) return url;
+    return `http://localhost:5000${url}`; 
+  };
 
-  useEffect(() => { fetchVideos(); fetchCategories(); }, []);
-
-  const fetchVideos = async () => {
+  // --- FETCH DATA ---
+  const fetchData = async () => {
     try {
-      const { data } = await api.get('/videos');
-      setVideos(data);
-    } catch (err) { console.error(err); }
+      setLoading(true);
+      const [videoRes, catRes] = await Promise.all([api.get('/videos'), api.get('/categories')]);
+      setVideos(videoRes.data);
+      setCategories(catRes.data);
+    } catch (error) { toast.error("Failed to load data"); } 
+    finally { setLoading(false); }
   };
 
-  const fetchCategories = async () => {
-    try {
-      const { data } = await api.get('/categories');
-      setCategories(data);
-    } catch (err) { console.error(err); }
+  useEffect(() => { fetchData(); }, []);
+
+  // --- HANDLERS ---
+  const formatDuration = (sec) => {
+    if (!sec) return "00:00";
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  // --- HELPER: Format Seconds to MM:SS ---
-  const formatDuration = (seconds) => {
-    const minutes = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    // Add leading zeros (e.g., 5:9 -> 05:09)
-    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  // --- UPLOAD HANDLER (Auto-Detects Duration) ---
-// --- UPLOAD HANDLER (With Strict Validation) ---
-  const uploadHandler = async (e, field) => {
+  const handleVideoSelect = (e) => {
     const file = e.target.files[0];
-    if (!file) return;
-
-    // 1. VALIDATION: Check File Type
-    if (field === 'videoUrl') {
-      // If uploading main video, MUST be video
+    if (file) {
+      // 1. Client-Side Check
       if (!file.type.startsWith('video/')) {
-        toast.error("⛔ Only Video files (MP4, MKV) are allowed here!");
-        return; // Stop execution
+        return toast.error("⛔ Invalid file! Please upload a Video (MP4/MKV).");
       }
-    } else if (field === 'thumbnailUrl') {
-      // If uploading thumbnail, MUST be image
-      if (!file.type.startsWith('image/')) {
-        toast.error("⛔ Only Image files (JPG, PNG) are allowed for thumbnails!");
-        return; // Stop execution
-      }
-    }
-
-    // 2. AUTO-DETECT DURATION (Only for videos)
-    if (field === 'videoUrl') {
-      const videoElement = document.createElement('video');
-      videoElement.preload = 'metadata';
-      videoElement.src = URL.createObjectURL(file);
+      setVideoFile(file);
       
-      videoElement.onloadedmetadata = () => {
-        window.URL.revokeObjectURL(videoElement.src);
-        const durationStr = formatDuration(videoElement.duration);
-        setFormData(prev => ({ ...prev, duration: durationStr }));
-        toast.info(`Duration detected: ${durationStr}`);
+      // Auto Duration Logic
+      const vid = document.createElement('video');
+      vid.preload = 'metadata';
+      vid.src = URL.createObjectURL(file);
+      vid.onloadedmetadata = () => {
+        window.URL.revokeObjectURL(vid.src);
+        const dur = formatDuration(vid.duration);
+        setFormData(prev => ({ ...prev, duration: dur }));
       };
     }
-
-    // 3. Upload to Server
-    const uploadData = new FormData();
-    uploadData.append('image', file);
-
-    if (field === 'videoUrl') setUploadingVideo(true);
-    else setUploadingThumb(true);
-
-    try {
-      const config = { headers: { 'Content-Type': 'multipart/form-data' } };
-      const { data } = await api.post('/upload', uploadData, config);
-      const fullUrl = `http://localhost:5000${data}`; 
-      
-      setFormData((prev) => ({ ...prev, [field]: fullUrl }));
-      toast.success(field === 'videoUrl' ? "Video Uploaded!" : "Thumbnail Uploaded!");
-    } catch (error) {
-      console.error(error);
-      toast.error('Upload Failed');
-    } finally {
-      setUploadingVideo(false);
-      setUploadingThumb(false);
-    }
   };
-  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.title || !formData.videoUrl || !formData.category) {
-      return toast.error("Title, Video, and Category are required");
-    }
-
+    setSubmitting(true);
     try {
-      if (isEditing) {
-        await api.put(`/admin/videos/${editId}`, formData);
-        toast.success("Video Updated!");
+      const config = { headers: { 'Content-Type': 'multipart/form-data' } };
+      let thumbnailUrl = editingVideo?.thumbnailUrl;
+      let videoUrl = editingVideo?.videoUrl;
+
+      // 1. Upload Thumbnail (Type = Image)
+      if (thumbnailFile) {
+        const data = new FormData(); data.append('image', thumbnailFile);
+        const res = await api.post('/upload?type=image', data, config);
+        thumbnailUrl = res.data;
+      }
+
+      // 2. Upload Video (Type = Video)
+      if (videoFile) {
+        const data = new FormData(); data.append('image', videoFile);
+        const res = await api.post('/upload?type=video', data, config);
+        videoUrl = res.data;
+      }
+
+      const payload = { ...formData, thumbnailUrl, videoUrl };
+      if (!payload.category && categories.length > 0) payload.category = categories[0].name;
+
+      if (editingVideo) {
+        await api.put(`/admin/videos/${editingVideo._id}`, payload);
+        toast.success("Updated!");
       } else {
-        await api.post('/admin/videos', { ...formData, duration: formData.duration || "00:00" });
-        toast.success("Video Saved!");
+        if (!videoFile) throw new Error("Please select a video file first.");
+        await api.post('/admin/videos', payload);
+        toast.success("Created!");
       }
       setShowFormModal(false);
-      resetForm();
-      fetchVideos();
-    } catch (error) { toast.error("Operation failed"); }
+      fetchData();
+    } catch (error) { 
+      console.error(error);
+      const serverError = error.response?.data?.message || error.response?.data;
+      toast.error(serverError || error.message || "Operation Failed");
+    } 
+    finally { setSubmitting(false); }
   };
 
-  // Helpers
-  const openAddModal = () => { resetForm(); setShowFormModal(true); };
+  const openAddModal = () => {
+    setEditingVideo(null);
+    setFormData({ title: '', category: categories[0]?.name || '', description: '', duration: '' });
+    setThumbnailFile(null); setVideoFile(null); setShowFormModal(true);
+  };
+
   const openEditModal = (video) => {
-    setFormData({
-      title: video.title,
-      description: video.description || '',
-      videoUrl: video.videoUrl,
-      thumbnailUrl: video.thumbnailUrl || '',
-      duration: video.duration,
-      category: video.category
-    });
-    setEditId(video._id);
-    setIsEditing(true);
+    setEditingVideo(video);
+    setFormData({ title: video.title, category: video.category, description: video.description, duration: video.duration });
+    setThumbnailFile(null);
+    setVideoFile(null);
     setShowFormModal(true);
   };
-  const resetForm = () => {
-    setFormData({ title: '', description: '', videoUrl: '', thumbnailUrl: '', duration: '', category: '' });
-    setIsEditing(false); setEditId(null);
-  };
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
-  
-  const clickDelete = (id) => {
-    setDeleteModal({ isOpen: true, action: async () => {
+
+  const deleteHandler = (id) => {
+    setDeleteModal({
+      isOpen: true,
+      action: async () => {
         try { await api.delete(`/admin/videos/${id}`); setVideos(videos.filter(v => v._id !== id)); toast.success("Deleted"); } 
-        catch (error) { toast.error("Delete Failed"); }
-    }});
+        catch (error) { toast.error("Failed"); }
+      }
+    });
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50 font-sans">
       <Sidebar />
-      <ConfirmModal isOpen={deleteModal.isOpen} onClose={() => setDeleteModal({ ...deleteModal, isOpen: false })} onConfirm={deleteModal.action} title="Delete Video?" message="Irreversible action." isDanger={true} />
+      <ConfirmModal isOpen={deleteModal.isOpen} onClose={() => setDeleteModal({ ...deleteModal, isOpen: false })} onConfirm={deleteModal.action} title="Delete Video?" isDanger={true} />
 
-      {/* --- FORM MODAL --- */}
-      {showFormModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden animate-in zoom-in-95 h-[90vh] flex flex-col">
-            <div className="px-6 py-4 border-b flex justify-between items-center bg-gray-50">
-              <h2 className="text-xl font-bold text-gray-800">{isEditing ? 'Edit Video' : 'Upload New Video'}</h2>
-              <button onClick={() => setShowFormModal(false)}><X size={20} className="text-gray-500 hover:text-red-500"/></button>
-            </div>
+      {/* --- BIG IMAGE VIEWER --- */}
+      {viewImage && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/95 p-4 animate-in fade-in cursor-pointer" onClick={() => setViewImage(null)}>
+           <img src={getProxyUrl(viewImage)} className="max-w-full max-h-[90vh] rounded-lg shadow-2xl object-contain cursor-default" onClick={(e) => e.stopPropagation()}/>
+           <button className="absolute top-5 right-5 text-white bg-white/20 p-2 rounded-full hover:bg-white/40 transition"><X size={24}/></button>
+        </div>
+      )}
 
-            <div className="overflow-y-auto flex-1 p-6">
-              <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                
-                <div className="col-span-2">
-                  <label className="text-sm font-bold text-gray-700 mb-1 block">Title</label>
-                  <input name="title" value={formData.title} onChange={handleChange} placeholder="Video Title" className="w-full border p-3 rounded-lg focus:ring-blue-500 outline-none" />
-                </div>
-
-                {/* --- VIDEO UPLOAD SECTION --- */}
-                <div className="bg-blue-50 border border-dashed border-blue-200 rounded-xl p-4 text-center flex flex-col items-center justify-center min-h-[150px]">
-                  <label className="text-xs font-bold text-blue-800 mb-2 uppercase tracking-wider">Main Video File</label>
-                  {formData.videoUrl ? (
-                    <div className="flex flex-col items-center gap-2 text-green-600 font-bold">
-                      <Film size={32} /> Video Ready!
-                      <button type="button" onClick={() => setFormData({...formData, videoUrl: ''})} className="text-xs text-red-500 underline">Remove & Change</button>
-                    </div>
-                  ) : (
-                    <label className="cursor-pointer flex flex-col items-center justify-center gap-2 w-full h-full">
-                      <div className="bg-white p-3 rounded-full text-blue-600 shadow-sm">
-                        {uploadingVideo ? <Loader className="animate-spin" size={24} /> : <UploadCloud size={24} />}
-                      </div>
-                      <span className="text-blue-600 font-bold text-sm">{uploadingVideo ? "Uploading..." : "Upload Video (MP4)"}</span>
-                      <input type="file" className="hidden" onChange={(e) => uploadHandler(e, 'videoUrl')} accept="video/*" disabled={uploadingVideo} />
-                    </label>
-                  )}
-                </div>
-
-                {/* --- THUMBNAIL UPLOAD SECTION --- */}
-                <div className="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-4 text-center flex flex-col items-center justify-center min-h-[150px]">
-                  <label className="text-xs font-bold text-gray-600 mb-2 uppercase tracking-wider">Thumbnail (Optional)</label>
-                  {formData.thumbnailUrl ? (
-                    <div className="relative w-full h-24 rounded-lg overflow-hidden group">
-                      <img src={formData.thumbnailUrl} alt="Thumbnail" className="w-full h-full object-cover" />
-                      <button type="button" onClick={() => setFormData({...formData, thumbnailUrl: ''})} className="absolute inset-0 bg-black/50 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
-                        <X size={20} /> Remove
-                      </button>
-                    </div>
-                  ) : (
-                    <label className="cursor-pointer flex flex-col items-center justify-center gap-2 w-full h-full">
-                      <div className="bg-white p-3 rounded-full text-gray-500 shadow-sm">
-                        {uploadingThumb ? <Loader className="animate-spin" size={24} /> : <ImageIcon size={24} />}
-                      </div>
-                      <span className="text-gray-500 font-medium text-sm">{uploadingThumb ? "Uploading..." : "Upload Cover Image"}</span>
-                      <input type="file" className="hidden" onChange={(e) => uploadHandler(e, 'thumbnailUrl')} accept="image/*" disabled={uploadingThumb} />
-                    </label>
-                  )}
-                </div>
-
-                <div>
-                  <label className="text-sm font-bold text-gray-700 mb-1 block">Category</label>
-                  <select name="category" value={formData.category} onChange={handleChange} className="w-full border p-3 rounded-lg bg-white">
-                    <option value="">Select Category</option>
-                    {categories.map(cat => <option key={cat._id} value={cat.name}>{cat.name}</option>)}
-                  </select>
-                </div>
-
-                {/* DURATION (Now Auto-Calculated) */}
-                <div>
-                  <label className="text-sm font-bold text-gray-700 mb-1 block">Duration</label>
-                  <div className="relative">
-                    <Clock className="absolute left-3 top-3.5 text-gray-400" size={16} />
-                    <input 
-                      name="duration" 
-                      value={formData.duration} 
-                      onChange={handleChange} 
-                      placeholder="Auto-detected (e.g. 05:20)" 
-                      className="w-full pl-9 border p-3 rounded-lg outline-none bg-gray-50" 
-                    />
-                  </div>
-                </div>
-
-                <div className="col-span-2">
-                   <label className="text-sm font-bold text-gray-700 mb-1 block">Description</label>
-                   <textarea name="description" value={formData.description} onChange={handleChange} placeholder="What is this video about?" className="w-full border p-3 rounded-lg h-24 resize-none outline-none"></textarea>
-                </div>
-              </form>
-            </div>
-
-            <div className="p-4 border-t bg-gray-50 flex gap-3">
-              <button onClick={() => setShowFormModal(false)} className="flex-1 py-3 rounded-xl font-bold text-gray-600 hover:bg-gray-200 bg-white border border-gray-200">Cancel</button>
-              <button onClick={handleSubmit} disabled={uploadingVideo || !formData.videoUrl} className={`flex-1 py-3 rounded-xl font-bold text-white shadow-lg ${uploadingVideo || !formData.videoUrl ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                {isEditing ? 'Save Changes' : 'Save Video'}
-              </button>
-            </div>
+      {/* --- VIDEO PLAYER --- */}
+      {viewVideo && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4 animate-in fade-in">
+          <div className="w-full max-w-4xl bg-black rounded-xl overflow-hidden relative shadow-2xl">
+            <button onClick={() => setViewVideo(null)} className="absolute top-4 right-4 z-10 p-2 bg-black/50 text-white rounded-full hover:bg-white/20 transition cursor-pointer"><X size={24}/></button>
+            <video src={getProxyUrl(viewVideo.videoUrl)} className="w-full max-h-[80vh]" controls autoPlay />
           </div>
         </div>
       )}
 
-      {/* --- MAIN PAGE CONTENT --- */}
       <div className="flex-1 ml-64 p-8">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3"><PlayCircle className="text-blue-600" /> Video Library</h1>
-          <button onClick={openAddModal} className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 flex items-center gap-2"><Plus size={20} /> Add New Video</button>
+          {/* --- FILM LOGO ADDED --- */}
+          <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2"><Film className="text-blue-600"/> Video Library</h1>
+          
+          <button onClick={openAddModal} className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg shadow hover:bg-blue-700 font-medium transition-colors cursor-pointer">
+            <Plus size={20} /> Add New
+          </button>
         </div>
 
-        {/* --- EMPTY STATE (SVG) --- */}
-        {videos.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-dashed border-gray-300">
-            <div className="bg-blue-50 p-6 rounded-full mb-4">
-              <FileVideo size={64} className="text-blue-300" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-800">No Videos Uploaded Yet</h3>
-            <p className="text-gray-400 mt-2 max-w-sm text-center">
-              Your library is looking empty. Upload your first video lesson to get started!
-            </p>
-            <button onClick={openAddModal} className="mt-6 text-blue-600 font-bold hover:underline">
-              Upload Now &rarr;
-            </button>
-          </div>
-        ) : (
-          /* --- VIDEO GRID --- */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {videos.map(video => (
-              <div key={video._id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden group hover:shadow-xl hover:-translate-y-1 transition-all">
-                
-                <div className="h-44 bg-black relative group">
-                  {video.thumbnailUrl ? (
-                    <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <video 
-                      src={video.videoUrl} 
-                      className="w-full h-full object-cover" 
-                      muted 
-                      preload="metadata"
-                      onMouseOver={event => event.target.play()} 
-                      onMouseOut={event => event.target.pause()}
-                    />
-                  )}
-
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover:bg-black/30 transition pointer-events-none">
-                     <PlayCircle className="text-white opacity-80 group-hover:scale-110 transition drop-shadow-lg" size={48} />
-                  </div>
-                  <span className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded font-bold backdrop-blur-sm">{video.duration}</span>
-                </div>
-                
-                <div className="p-4">
-                  <h3 className="font-bold text-gray-800 line-clamp-1" title={video.title}>{video.title}</h3>
-                  <div className="flex gap-2 mt-4 pt-3 border-t border-gray-100">
-                    <button onClick={() => openEditModal(video)} className="flex-1 py-2 rounded-lg bg-gray-50 text-gray-600 text-xs font-bold hover:bg-blue-50 hover:text-blue-600 transition flex justify-center items-center gap-2"><Edit2 size={14}/> Edit</button>
-                    <button onClick={() => clickDelete(video._id)} className="flex-1 py-2 rounded-lg bg-red-50 text-red-500 text-xs font-bold hover:bg-red-100"><Trash2 size={14}/> Del</button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {loading 
+            ? [1,2,3,4,5,6].map(i => <MediaSkeleton key={i} />) 
+            : videos.map(video => (
+                <MediaCard 
+                  key={video._id} 
+                  data={video} 
+                  type="video" 
+                  onPlay={setViewVideo} 
+                  onViewImage={setViewImage}
+                  onEdit={openEditModal} 
+                  onDelete={deleteHandler} 
+                />
+              ))
+          }
+        </div>
       </div>
+
+      {showFormModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in zoom-in-95">
+          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b flex justify-between items-center bg-gray-50">
+              <h2 className="text-xl font-bold text-gray-800">{editingVideo ? 'Edit Video' : 'Upload Video'}</h2>
+              <button onClick={() => setShowFormModal(false)}><X className="text-gray-400 hover:text-red-500 transition cursor-pointer" /></button>
+            </div>
+            <div className="overflow-y-auto p-6">
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="col-span-2">
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Title</label>
+                    <input className="w-full border p-2.5 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition" 
+                           value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} required />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Category</label>
+                    <select className="w-full border p-2.5 rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500 transition"
+                            value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} required>
+                      <option value="">Select</option>
+                      {categories.map(cat => <option key={cat._id} value={cat.name}>{cat.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Duration</label>
+                    <input className="w-full border bg-gray-50 p-2.5 rounded-lg text-gray-500" value={formData.duration} readOnly />
+                  </div>
+                </div>
+
+                <div className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center transition ${videoFile ? 'border-green-400 bg-green-50' : 'border-blue-200 bg-blue-50'}`}>
+                    <Film size={32} className={videoFile ? "text-green-600" : "text-blue-500"}/>
+                    <p className="text-sm font-bold mt-2">{videoFile ? videoFile.name : (editingVideo ? "Keep Current Video" : "Upload Video")}</p>
+                    <input type="file" accept="video/*" className="hidden" id="vidUpload" onChange={handleVideoSelect} />
+                    <label htmlFor="vidUpload" className="mt-2 text-xs text-blue-600 underline cursor-pointer hover:text-blue-800">Choose File</label>
+                </div>
+
+                <div className="border border-dashed p-3 rounded-lg flex items-center gap-4 hover:bg-gray-50 transition">
+                    <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden border flex items-center justify-center">
+                       {thumbnailFile ? (
+                         <img src={URL.createObjectURL(thumbnailFile)} className="w-full h-full object-cover"/>
+                       ) : (editingVideo?.thumbnailUrl) ? (
+                         <img src={getProxyUrl(editingVideo.thumbnailUrl)} className="w-full h-full object-cover"/>
+                       ) : (
+                         <ImageIcon className="text-gray-400"/>
+                       )}
+                    </div>
+                    <div>
+                       <p className="text-sm font-bold text-gray-700">Thumbnail</p>
+                       <input type="file" accept="image/*" onChange={e => setThumbnailFile(e.target.files[0])} className="text-sm mt-1 text-gray-500 file:mr-4 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"/>
+                    </div>
+                </div>
+
+                <div className="col-span-2">
+                   <label className="block text-sm font-bold text-gray-700 mb-1">Description</label>
+                   <textarea className="w-full border p-2.5 rounded-lg h-20 outline-none focus:ring-2 focus:ring-blue-500 transition" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
+                </div>
+
+                <button disabled={submitting} className="w-full py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 transition shadow-md cursor-pointer flex justify-center items-center">
+                   {submitting ? <Loader2 className="animate-spin"/> : "Save Video"}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

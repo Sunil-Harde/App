@@ -17,5 +17,5 @@ If you are developing a production application, we recommend using TypeScript wi
 
 
 
-Email: daitya@test.com
+Email: a@a.a
 Password: 123
