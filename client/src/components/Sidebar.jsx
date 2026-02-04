@@ -106,7 +106,7 @@ const Sidebar = () => {
           <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
           Logout
         </button>
-      </div>
+      </ div>
     </div>
   );
 };

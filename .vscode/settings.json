@@ -1,0 +1,10 @@
+{
+    "editor.cursorHeight": 0,
+    "editor.cursorSmoothCaretAnimation": "explicit",
+    "editor.cursorStyle": "line",
+    "editor.cursorSurroundingLines": 0,
+    "editor.cursorSurroundingLinesStyle": "all",
+    "editor.cursorWidth": 0,
+    "editor.find.autoFindInSelection": "always",
+    "editor.find.findOnType": false
+}
